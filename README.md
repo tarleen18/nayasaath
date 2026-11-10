@@ -47,6 +47,12 @@ pnpm dev:api
 pnpm dev:web
 ```
 
+## Publish the web frontend on GitHub Pages
+
+The web app is configured for a static export. A GitHub Actions workflow publishes it to GitHub Pages on pushes to `main`. The repository Pages setting must use **GitHub Actions** as its build and deployment source. The workflow build output is `apps/web/.next-github-pages`; the `apps/web/public/CNAME` file binds `nayasaath.me`. DNS should have the four GitHub Pages apex A records and `www` as a CNAME to `tarleen18.github.io`. Preserve unrelated mail records.
+
+GitHub Pages hosts only the static frontend; it does not run the NestJS API or database. Registration, email-code verification, and login require a separately deployed API and a production `NEXT_PUBLIC_API_URL`. Do not collect real member data until that API and the security-critical launch gates below are ready.
+
 Mobile app:
 
 ```bash
