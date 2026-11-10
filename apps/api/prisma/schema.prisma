@@ -364,3 +364,12 @@ model EmailVerificationToken {
   @@index([userId, createdAt])
   @@index([expiresAt, consumedAt])
 }
+
+model AuthRateLimit {
+  bucket    String   @id
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}

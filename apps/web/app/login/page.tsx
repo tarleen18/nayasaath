@@ -4,7 +4,7 @@ import { FormEvent, useState } from 'react';
 import { PasswordField } from '../components/password-field';
 import { setMemberSession } from '../session';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+const API = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '');
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -19,6 +19,7 @@ export default function LoginPage() {
     setError('');
     setMessage('');
     try {
+      if (!API) throw new Error('Sign in is temporarily unavailable because the authentication service is not configured.');
       const response = await fetch(`${API}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

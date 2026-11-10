@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+const API = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '');
 
 export default function VerifyEmailPage() {
   const [email, setEmail] = useState('');
@@ -22,6 +22,7 @@ export default function VerifyEmailPage() {
     setError('');
     setMessage('');
     try {
+      if (!API) throw new Error('Email verification is temporarily unavailable because the authentication service is not configured.');
       const response = await fetch(`${API}/auth/email/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

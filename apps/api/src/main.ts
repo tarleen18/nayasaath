@@ -4,21 +4,46 @@ import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { validateEmailAccessLists } from './auth/email-access-policy';
+import { EmailService } from './auth/email.service';
 
 async function bootstrap() {
   validateEmailAccessLists();
-  if (process.env.NODE_ENV === 'production') {
-    for (const key of ['DATABASE_URL', 'JWT_ACCESS_SECRET']) {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const webOrigins = (process.env.WEB_ORIGIN ?? '').split(',').map((origin) => origin.trim()).filter(Boolean);
+  if (isProduction) {
+    if (process.env.AUTH_ONLY_MODE !== 'true') {
+      throw new Error('Production launch blocked: set AUTH_ONLY_MODE=true until all production launch gates for the full API are complete.');
+    }
+    for (const key of ['DATABASE_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'EMAIL_FROM']) {
       if (!process.env[key]) throw new Error(`Missing required production environment variable: ${key}`);
     }
-    if ((process.env.JWT_ACCESS_SECRET ?? '').length < 32) throw new Error('JWT_ACCESS_SECRET must contain at least 32 characters.');
-    throw new Error('Production launch blocked: production SMTP deliverability, OTP/SMS delivery, KYC, private document storage, distributed rate limiting and payment adapters are not yet implemented and independently tested.');
+    for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET']) {
+      if ((process.env[key] ?? '').length < 32) throw new Error(`${key} must contain at least 32 characters.`);
+    }
+    if (process.env.JWT_ACCESS_SECRET === process.env.JWT_REFRESH_SECRET) {
+      throw new Error('JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different values.');
+    }
+    if (process.env.EMAIL_PROVIDER !== 'smtp' || process.env.SMTP_SECURE !== 'true') {
+      throw new Error('Production email must use an authenticated SMTP provider with TLS.');
+    }
+    if (!webOrigins.length || webOrigins.some((origin) => {
+      try {
+        const parsed = new URL(origin);
+        return parsed.protocol !== 'https:' || parsed.origin !== origin;
+      } catch {
+        return true;
+      }
+    })) {
+      throw new Error('WEB_ORIGIN must contain one or more exact HTTPS origins separated by commas.');
+    }
   }
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  if (isProduction) app.get(EmailService).assertConfigured();
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.setGlobalPrefix('api/v1');
   app.use(helmet());
   app.enableCors({
-    origin: process.env.NODE_ENV === 'production' ? (process.env.WEB_ORIGIN ?? '').split(',').filter(Boolean) : true,
+    origin: isProduction ? webOrigins : true,
     credentials: true,
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));

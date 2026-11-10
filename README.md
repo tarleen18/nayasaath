@@ -30,7 +30,7 @@ The local Compose database is published on host port `5433` to avoid conflicts w
 
 Local verification messages are captured by Mailpit at [http://localhost:8025](http://localhost:8025); nothing is sent to real email addresses. To deliver messages to users, configure a real SMTP provider in `apps/api/.env`. For example, with a verified sender domain on Resend, use `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`, `SMTP_SECURE=true`, `SMTP_USER=resend`, `SMTP_PASSWORD=<your Resend API key>`, and `EMAIL_FROM=<a verified sender address>`. Keep credentials out of source control and restart the API after changing them.
 
-Member registration sends a six-digit email verification code. The account remains pending and cannot sign in or receive an access/refresh token until the code is verified. Codes expire after 30 minutes, can be attempted at most five times, and resend requests are throttled to one per minute per pending account. `AUTH_EMAIL_BLOCKLIST` rejects listed addresses; a non-empty `AUTH_EMAIL_ALLOWLIST` permits only listed addresses. Both accept comma-separated exact email addresses, are evaluated case-insensitively at registration, login, refresh, verification, and authenticated requests, and take effect after the API restarts. The blocklist takes precedence.
+Member registration sends a six-digit email verification code. The account remains pending and cannot sign in or receive an access/refresh token until the code is verified. Codes expire after 30 minutes, can be attempted at most five times, and resend requests are throttled to one per minute per pending account. Public registration, login, verify, and resend routes also use database-backed per-IP rate limits. `AUTH_EMAIL_BLOCKLIST` rejects listed addresses; a non-empty `AUTH_EMAIL_ALLOWLIST` permits only listed addresses. Both accept comma-separated exact email addresses, are evaluated case-insensitively at registration, login, refresh, verification, and authenticated requests, and take effect after the API restarts. The blocklist takes precedence.
 
 Provision the first staff administrator from a trusted terminal. Use a unique password manager-generated password of at least 16 characters; do not commit it or put it in source control:
 
@@ -51,7 +51,16 @@ pnpm dev:web
 
 The web app is configured for a static export. A GitHub Actions workflow publishes it to GitHub Pages on pushes to `main`. The repository Pages setting must use **GitHub Actions** as its build and deployment source. The workflow build output is `apps/web/.next-github-pages`; the `apps/web/public/CNAME` file binds `nayasaath.me`. DNS should have the four GitHub Pages apex A records and `www` as a CNAME to `tarleen18.github.io`. Preserve unrelated mail records.
 
-GitHub Pages hosts only the static frontend; it does not run the NestJS API or database. Registration, email-code verification, and login require a separately deployed API and a production `NEXT_PUBLIC_API_URL`. Do not collect real member data until that API and the security-critical launch gates below are ready.
+GitHub Pages hosts only the static frontend; it does not run the NestJS API or database. The repository includes a free-tier Render Blueprint for an auth-only API; it requires an external PostgreSQL database and verified email-sending domain. The production API deliberately exposes only health and authentication routes until the remaining production launch gates are complete.
+
+To enable registration, email-code verification, and login:
+
+1. Create a PostgreSQL database with a managed provider such as Neon and keep its connection string private.
+2. In Render, create a Blueprint from this repository using `render.yaml`. Set `DATABASE_URL` to the database connection string and deploy the service.
+3. In Resend, verify a sending domain. Use the `mail.nayasaath.me` subdomain and add only the DNS records Resend provides for that subdomain in Namecheap; preserve the existing apex email-forwarding records. Create an SMTP API key and enter it as Render's `SMTP_PASSWORD`. The sender configured in the Blueprint is `no-reply@mail.nayasaath.me`.
+4. After the Render API is healthy at `/api/v1/health`, add a GitHub Actions repository variable named `NEXT_PUBLIC_API_URL` with the API base URL ending in `/api/v1`, then rerun the `Deploy web to GitHub Pages` workflow.
+
+Render's free web service may sleep when idle, so the first request can take longer. Do not collect real member data until email delivery is verified and the remaining security-critical launch gates below are ready. Never put database credentials, SMTP keys, or JWT secrets in Git or chat.
 
 Mobile app:
 
@@ -79,7 +88,7 @@ Member access tokens expire after 15 minutes. Refresh tokens are random, stored 
 
 ## Security-critical launch gates
 
-This repository now includes working source implementations for password-based member authentication, mandatory SMTP email verification, refresh-token rotation, email allow/block lists, staff authentication, a reviewer-only verification queue and a verification state machine. It is not yet a complete production service and is not ready to accept real members. Before accepting real users, complete and independently test: production SMTP/email deliverability and domain authentication; production OTP/SMS delivery; KYC and marital-document provider integrations; secure document upload, private object storage, malware scanning and audited short-lived document preview (not yet implemented); payment provider and webhook signature validation; consent and DPDP compliance workflows; grievance operations; distributed rate limits and abuse detection (not yet implemented); moderation staffing; backup restore drills; penetration testing; incident response; legal review; app-store review; and production observability.
+This repository now includes working source implementations for password-based member authentication, mandatory SMTP email verification, refresh-token rotation, email allow/block lists, database-backed auth-route rate limits, staff authentication, a reviewer-only verification queue and a verification state machine. The auth-only deployment mode exposes only health and member authentication endpoints; it does not make the wider product production-ready. Before accepting real members, complete and independently test: production SMTP/email deliverability and domain authentication; production OTP/SMS delivery; KYC and marital-document provider integrations; secure document upload, private object storage, malware scanning and audited short-lived document preview (not yet implemented); payment provider and webhook signature validation; consent and DPDP compliance workflows; grievance operations; abuse detection outside the auth routes; moderation staffing; backup restore drills; penetration testing; incident response; legal review; app-store review; and production observability.
 
 **Never use the local Docker credentials or development environment for production.** No real Aadhaar numbers, identity documents, death certificates, divorce decrees, payment credentials or other sensitive personal data should be placed in development fixtures.
 

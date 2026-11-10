@@ -3,9 +3,10 @@
 import { FormEvent, useState } from 'react';
 import { PasswordField } from '../components/password-field';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+const API = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '');
 
 async function post(path: string, body: Record<string, string>) {
+  if (!API) throw new Error('Account registration is temporarily unavailable because the authentication service is not configured.');
   const response = await fetch(`${API}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -58,13 +59,6 @@ export default function RegisterPage() {
       {mode === 'register'
         ? 'Create your account with an email address you can access. We will email you a six-digit code that you must enter before signing in.'
         : 'Enter the email address you registered with. If it has a pending account, we will send another code.'}
-    </p>
-    <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.6 }}>
-      Local setup uses Mailpit to capture email at{' '}
-      <a href="http://localhost:8025" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--wine)', fontWeight: 600 }}>
-        localhost:8025
-      </a>{' '}
-      instead of delivering externally. Configure a real SMTP provider to email users' inboxes.
     </p>
     <form onSubmit={submit} style={{ display: 'grid', gap: 16, marginTop: 28 }}>
       <label>Email address

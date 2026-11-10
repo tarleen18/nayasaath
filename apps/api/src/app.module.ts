@@ -19,10 +19,34 @@ import { SafetyService } from './safety/safety.service';
 import { ConnectionsController } from './connections/connections.controller';
 import { ConnectionsService } from './connections/connections.service';
 import { EmailService } from './auth/email.service';
+import { AuthRateLimitGuard } from './auth/auth-rate-limit.guard';
+
+const authOnlyMode = process.env.AUTH_ONLY_MODE === 'true';
+const authOnlyControllers = [HealthController, AuthController];
+const fullApiControllers = [
+  HealthController,
+  VerificationController,
+  AuthController,
+  AdminController,
+  ProfilesController,
+  SafetyController,
+  ConnectionsController,
+];
+const authOnlyProviders = [PrismaService, AuthService, EmailService, JwtAuthGuard, AuthRateLimitGuard];
+const fullApiProviders = [
+  ...authOnlyProviders,
+  VerificationService,
+  AdminService,
+  AdminAuthGuard,
+  VerificationReviewerGuard,
+  ProfilesService,
+  SafetyService,
+  ConnectionsService,
+];
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../../.env', '.env'] }), JwtModule.register({})],
-  controllers: [HealthController, VerificationController, AuthController, AdminController, ProfilesController, SafetyController, ConnectionsController],
-  providers: [PrismaService, VerificationService, AuthService, EmailService, JwtAuthGuard, AdminService, AdminAuthGuard, VerificationReviewerGuard, ProfilesService, SafetyService, ConnectionsService],
+  controllers: authOnlyMode ? authOnlyControllers : fullApiControllers,
+  providers: authOnlyMode ? authOnlyProviders : fullApiProviders,
 })
 export class AppModule {}

@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: nayasaath-auth-api
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @nayasaath/api prisma:generate && pnpm --filter @nayasaath/api build
+    startCommand: pnpm --filter @nayasaath/api prisma:migrate:deploy && pnpm --filter @nayasaath/api start:prod
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_ONLY_MODE
+        value: "true"
+      - key: WEB_ORIGIN
+        value: https://nayasaath.me
+      - key: EMAIL_PROVIDER
+        value: smtp
+      - key: SMTP_HOST
+        value: smtp.resend.com
+      - key: SMTP_PORT
+        value: "465"
+      - key: SMTP_SECURE
+        value: "true"
+      - key: SMTP_USER
+        value: resend
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        value: NayaSaath <no-reply@mail.nayasaath.me>
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
