@@ -1,0 +1,1 @@
+{"expo":{"name":"NayaSaath","slug":"nayasaath","scheme":"nayasaath","version":"0.1.0","orientation":"portrait","userInterfaceStyle":"light","newArchEnabled":true,"plugins":["expo-router"],"ios":{"supportsTablet":true},"android":{"package":"in.nayasaath.app"}}}

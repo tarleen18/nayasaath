@@ -1,0 +1,18 @@
+{
+  "name": "nayasaath-platform",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev:api": "pnpm --dir apps/api start:dev",
+    "dev:web": "pnpm --dir apps/web dev",
+    "dev:mobile": "pnpm --dir apps/mobile start",
+    "db:generate": "pnpm --dir apps/api prisma:generate",
+    "db:migrate": "pnpm --dir apps/api prisma:migrate",
+    "typecheck": "pnpm -r typecheck",
+    "admin:create": "node --env-file=.env apps/api/scripts/create-admin.mjs"
+  },
+  "engines": {
+    "node": ">=20.11"
+  }
+}

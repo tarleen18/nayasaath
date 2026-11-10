@@ -1,0 +1,12 @@
+node_modules
+.pnpm-store
+dist
+build
+.next
+.expo
+.env
+.env.*
+!.env.example
+coverage
+.DS_Store
+*.tsbuildinfo

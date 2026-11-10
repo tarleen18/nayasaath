@@ -1,0 +1,366 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  VERIFICATION_REVIEWER
+  SUPPORT
+  MODERATOR
+}
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  SUSPENDED
+  DELETION_REQUESTED
+  DELETED
+}
+enum Gender {
+  WOMAN
+  MAN
+  NON_BINARY
+  SELF_DESCRIBED
+}
+enum MaritalStatus {
+  NEVER_MARRIED
+  DIVORCED
+  WIDOWED
+  LEGALLY_SEPARATED
+  ANNULLED
+  OTHER
+}
+enum VerificationType {
+  IDENTITY
+  MARITAL_STATUS
+  EMPLOYMENT
+  EDUCATION
+}
+enum VerificationStatus {
+  NOT_STARTED
+  PENDING
+  IN_REVIEW
+  NEEDS_INFORMATION
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+enum DocumentKind {
+  GOVERNMENT_ID
+  DIVORCE_DECREE
+  DEATH_CERTIFICATE
+  SEPARATION_ORDER
+  ANNULMENT_DECREE
+  OTHER_LEGAL_DOCUMENT
+}
+enum InterestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+enum ReportStatus {
+  OPEN
+  TRIAGED
+  INVESTIGATING
+  ACTIONED
+  DISMISSED
+}
+enum OtpPurpose {
+  VERIFY_EMAIL
+  VERIFY_PHONE
+}
+enum SubscriptionStatus {
+  INCOMPLETE
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+model User {
+  id String @id @default(cuid())
+  phoneE164 String? @unique
+  email String? @unique
+  passwordHash String?
+  status AccountStatus @default(PENDING)
+  phoneVerifiedAt DateTime?
+  emailVerifiedAt DateTime?
+  dateOfBirth DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  profile Profile?
+  verificationCases VerificationCase[]
+  refreshSessions RefreshSession[]
+  otpChallenges OtpChallenge[]
+  emailVerificationTokens EmailVerificationToken[]
+  sentInterests Interest[] @relation("SentInterests")
+  receivedInterests Interest[] @relation("ReceivedInterests")
+  sentMessages Message[]
+  reportsFiled Report[] @relation("ReportsFiled")
+  blocksMade Block[] @relation("BlocksMade")
+  blocksReceived Block[] @relation("BlocksReceived")
+  consents ConsentRecord[]
+  auditEvents AuditLog[] @relation("UserAuditEvents")
+  @@index([status, createdAt])
+}
+
+model Profile {
+  id String @id @default(cuid())
+  userId String @unique
+  displayName String
+  gender Gender
+  selfDescribedGender String?
+  city String?
+  state String?
+  countryCode String @default("IN")
+  education String?
+  profession String?
+  bio String? @db.VarChar(1200)
+  maritalStatus MaritalStatus
+  maritalStatusDetails String? @db.VarChar(1000)
+  hasChildren Boolean @default(false)
+  childrenCount Int?
+  childrenLivingArrangement String?
+  languages String[]
+  interests String[]
+  profileVisible Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photos ProfilePhoto[]
+  preference PartnerPreference?
+  @@index([maritalStatus, city, profileVisible])
+}
+
+model ProfilePhoto {
+  id String @id @default(cuid())
+  profileId String
+  storageKey String @unique
+  visibility String @default("MATCHES_ONLY")
+  moderationStatus String @default("PENDING")
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  @@index([profileId, moderationStatus])
+}
+
+model PartnerPreference {
+  id String @id @default(cuid())
+  profileId String @unique
+  minAge Int?
+  maxAge Int?
+  preferredCities String[]
+  acceptedMaritalStatuses MaritalStatus[]
+  openToPartnerWithChildren Boolean?
+  willingToRelocate Boolean?
+  educationPreferences String[]
+  languagePreferences String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model VerificationCase {
+  id String @id @default(cuid())
+  userId String
+  type VerificationType
+  status VerificationStatus @default(PENDING)
+  claimedMaritalStatus MaritalStatus?
+  submittedAt DateTime @default(now())
+  reviewedAt DateTime?
+  reviewerAdminId String?
+  reviewerNotes String? @db.VarChar(2000)
+  rejectionReason String? @db.VarChar(1000)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents VerificationDocument[]
+  events VerificationEvent[]
+  @@index([type, status, submittedAt])
+  @@index([userId, type, submittedAt])
+}
+
+model VerificationDocument {
+  id String @id @default(cuid())
+  caseId String
+  kind DocumentKind
+  privateStorageKey String @unique
+  originalFilename String
+  mimeType String
+  fileSizeBytes Int
+  sha256 String
+  uploadedAt DateTime @default(now())
+  retentionReviewAt DateTime?
+  case VerificationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  @@index([caseId])
+}
+
+model VerificationEvent {
+  id String @id @default(cuid())
+  caseId String
+  actorUserId String?
+  actorAdminId String?
+  fromStatus VerificationStatus?
+  toStatus VerificationStatus
+  reason String?
+  createdAt DateTime @default(now())
+  case VerificationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  @@index([caseId, createdAt])
+}
+
+model Interest {
+  id String @id @default(cuid())
+  senderId String
+  receiverId String
+  status InterestStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sender User @relation("SentInterests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedInterests", fields: [receiverId], references: [id], onDelete: Cascade)
+  @@unique([senderId, receiverId])
+  @@index([receiverId, status, createdAt])
+}
+
+model Conversation {
+  id String @id @default(cuid())
+  memberAId String
+  memberBId String
+  createdAt DateTime @default(now())
+  messages Message[]
+  @@unique([memberAId, memberBId])
+}
+
+model Message {
+  id String @id @default(cuid())
+  conversationId String
+  senderId String
+  body String @db.VarChar(5000)
+  createdAt DateTime @default(now())
+  readAt DateTime?
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  @@index([conversationId, createdAt])
+}
+
+model Block {
+  id String @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker User @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+  @@unique([blockerId, blockedId])
+}
+
+model Report {
+  id String @id @default(cuid())
+  reporterId String
+  reportedUserId String
+  category String
+  description String @db.VarChar(3000)
+  status ReportStatus @default(OPEN)
+  assignedAdminId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  reporter User @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+  @@index([status, createdAt])
+}
+
+model ConsentRecord {
+  id String @id @default(cuid())
+  userId String
+  purpose String
+  policyVersion String
+  granted Boolean
+  recordedAt DateTime @default(now())
+  withdrawnAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, purpose, recordedAt])
+}
+
+model Subscription {
+  id String @id @default(cuid())
+  userId String
+  provider String
+  providerCustomerId String?
+  providerSubscriptionId String? @unique
+  planCode String
+  status SubscriptionStatus @default(INCOMPLETE)
+  currentPeriodEnd DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId, status])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  actorUserId String?
+  actorAdminId String?
+  action String
+  resourceType String
+  resourceId String
+  metadata Json?
+  ipHash String?
+  createdAt DateTime @default(now())
+  actorUser User? @relation("UserAuditEvents", fields: [actorUserId], references: [id], onDelete: SetNull)
+  @@index([resourceType, resourceId, createdAt])
+  @@index([actorAdminId, createdAt])
+}
+
+
+model RefreshSession {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+}
+
+model AdminUser {
+  id String @id @default(cuid())
+  email String @unique
+  passwordHash String
+  role AdminRole @default(VERIFICATION_REVIEWER)
+  active Boolean @default(true)
+  memberUserId String? @unique
+  lastLoginAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([active, role])
+}
+
+
+model OtpChallenge {
+  id String @id @default(cuid())
+  userId String
+  purpose OtpPurpose
+  destination String
+  codeHash String
+  expiresAt DateTime
+  consumedAt DateTime?
+  attempts Int @default(0)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, purpose, createdAt])
+  @@index([expiresAt, consumedAt])
+}
+
+model EmailVerificationToken {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  consumedAt DateTime?
+  attempts Int @default(0)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+  @@index([expiresAt, consumedAt])
+}
