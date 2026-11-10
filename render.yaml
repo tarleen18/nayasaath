@@ -15,16 +15,8 @@ services:
       - key: WEB_ORIGIN
         value: https://nayasaath.me
       - key: EMAIL_PROVIDER
-        value: smtp
-      - key: SMTP_HOST
-        value: smtp.resend.com
-      - key: SMTP_PORT
-        value: "465"
-      - key: SMTP_SECURE
-        value: "true"
-      - key: SMTP_USER
         value: resend
-      - key: SMTP_PASSWORD
+      - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM
         value: NayaSaath <no-reply@mail.nayasaath.me>

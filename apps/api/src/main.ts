@@ -14,7 +14,7 @@ async function bootstrap() {
     if (process.env.AUTH_ONLY_MODE !== 'true') {
       throw new Error('Production launch blocked: set AUTH_ONLY_MODE=true until all production launch gates for the full API are complete.');
     }
-    for (const key of ['DATABASE_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'EMAIL_FROM']) {
+    for (const key of ['DATABASE_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'EMAIL_FROM']) {
       if (!process.env[key]) throw new Error(`Missing required production environment variable: ${key}`);
     }
     for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET']) {
@@ -23,8 +23,11 @@ async function bootstrap() {
     if (process.env.JWT_ACCESS_SECRET === process.env.JWT_REFRESH_SECRET) {
       throw new Error('JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different values.');
     }
-    if (process.env.EMAIL_PROVIDER !== 'smtp' || process.env.SMTP_SECURE !== 'true') {
-      throw new Error('Production email must use an authenticated SMTP provider with TLS.');
+    if (process.env.EMAIL_PROVIDER === 'smtp' && process.env.SMTP_SECURE !== 'true') {
+      throw new Error('Production SMTP email must use TLS.');
+    }
+    if (!['smtp', 'resend'].includes(process.env.EMAIL_PROVIDER ?? '')) {
+      throw new Error('Production email must use the Resend API or an authenticated SMTP provider.');
     }
     if (!webOrigins.length || webOrigins.some((origin) => {
       try {
