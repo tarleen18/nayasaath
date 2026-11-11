@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail() email!: string;
@@ -26,4 +26,9 @@ export class EmailAddressDto {
 
 export class VerifyEmailDto extends EmailAddressDto {
   @IsString() @Matches(/^\d{6}$/) code!: string;
+}
+
+export class PasswordResetDto {
+  @IsString() @Matches(/^[a-f0-9]{64}$/) token!: string;
+  @IsString() @MinLength(12) @MaxLength(256) password!: string;
 }

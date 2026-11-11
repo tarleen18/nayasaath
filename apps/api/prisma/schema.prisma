@@ -99,6 +99,7 @@ model User {
   refreshSessions RefreshSession[]
   otpChallenges OtpChallenge[]
   emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
   sentInterests Interest[] @relation("SentInterests")
   receivedInterests Interest[] @relation("ReceivedInterests")
   sentMessages Message[]
@@ -363,6 +364,18 @@ model EmailVerificationToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, createdAt])
   @@index([expiresAt, consumedAt])
+}
+
+model PasswordResetToken {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+  @@index([expiresAt, usedAt])
 }
 
 model AuthRateLimit {

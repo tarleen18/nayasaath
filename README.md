@@ -30,7 +30,7 @@ The local Compose database is published on host port `5433` to avoid conflicts w
 
 Local verification messages are captured by Mailpit at [http://localhost:8025](http://localhost:8025); nothing is sent to real email addresses. For local SMTP testing, configure `EMAIL_PROVIDER=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, and `EMAIL_FROM` in `apps/api/.env`. For Resend, set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY=<your Resend API key>`, and `EMAIL_FROM=<a verified sender address>`. The Resend provider uses its HTTPS API, avoiding outbound SMTP restrictions on hosting platforms. Keep credentials out of source control and restart the API after changing them.
 
-Member registration sends a six-digit email verification code. The account remains pending and cannot sign in or receive an access/refresh token until the code is verified. Codes expire after 30 minutes, can be attempted at most five times, and resend requests are throttled to one per minute per pending account. Public registration, login, verify, and resend routes also use database-backed per-IP rate limits. `AUTH_EMAIL_BLOCKLIST` rejects listed addresses; a non-empty `AUTH_EMAIL_ALLOWLIST` permits only listed addresses. Both accept comma-separated exact email addresses, are evaluated case-insensitively at registration, login, refresh, verification, and authenticated requests, and take effect after the API restarts. The blocklist takes precedence.
+Member registration sends a six-digit email verification code. The account remains pending and cannot sign in or receive an access/refresh token until the code is verified. Codes expire after 30 minutes, can be attempted at most five times, and resend requests are throttled to one per minute per pending account. Password recovery sends a single-use link that expires after 30 minutes; completing a reset revokes the account's existing refresh sessions. Public registration, login, verification, resend, and password recovery routes also use database-backed per-IP rate limits. `AUTH_EMAIL_BLOCKLIST` rejects listed addresses; a non-empty `AUTH_EMAIL_ALLOWLIST` permits only listed addresses. Both accept comma-separated exact email addresses, are evaluated case-insensitively at registration, login, refresh, verification, and authenticated requests, and take effect after the API restarts. The blocklist takes precedence.
 
 Provision the first staff administrator from a trusted terminal. Use a unique password manager-generated password of at least 16 characters; do not commit it or put it in source control:
 
@@ -73,6 +73,8 @@ pnpm dev:mobile
 - `POST /api/v1/auth/register` — pending email/password account and email verification (Argon2id password hash); does not issue a session.
 - `POST /api/v1/auth/email/verify` — verify a six-digit, single-use email code and activate the account.
 - `POST /api/v1/auth/email/resend` — resend a verification code without revealing whether an address has an account.
+- `POST /api/v1/auth/password/forgot` — request password reset instructions without revealing whether an address has an account.
+- `POST /api/v1/auth/password/reset` — set a new password with a 30-minute, single-use reset token; invalidates existing refresh sessions.
 - `POST /api/v1/auth/login` — member login; email verification and allow/block policy are required.
 - `POST /api/v1/auth/refresh` — one-time rotating opaque refresh token.
 - `POST /api/v1/auth/logout` — revoke refresh token.

@@ -52,6 +52,7 @@ export default function LoginPage() {
       <label>Password
         <PasswordField required autoComplete="current-password" value={password} onChange={setPassword} style={fieldStyle} />
       </label>
+      <a href="/forgot-password" style={{ color: 'var(--wine)', fontWeight: 600, fontSize: 14 }}>Forgot password?</a>
       {error && <p role="alert" style={{ color: '#a22', lineHeight: 1.6, margin: 0 }}>{error}</p>}
       {message && <p role="status" style={{ color: '#356647', lineHeight: 1.6, margin: 0 }}>{message}</p>}
       <button className="button" disabled={busy}>{busy ? 'Signing in…' : 'Sign in securely'}</button>

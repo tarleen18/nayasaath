@@ -9,6 +9,8 @@ const limits: Record<string, number> = {
   login: 10,
   'email/verify': 10,
   'email/resend': 3,
+  'password/forgot': 3,
+  'password/reset': 10,
 };
 
 @Injectable()

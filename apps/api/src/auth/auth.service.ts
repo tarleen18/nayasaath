@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes, createHmac, randomInt, timingSafeEqual } from 'crypto';
@@ -11,6 +11,8 @@ const verificationNotice = 'If this address can be registered, a verification co
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -157,6 +159,108 @@ export class AuthService {
 
     await this.sendVerification(user.id, email);
     return { success: true, notice: verificationNotice };
+  }
+
+  async requestPasswordReset(emailInput: string) {
+    const notice = 'If an account exists for this address, password reset instructions will be sent.';
+    const email = emailInput.trim().toLowerCase();
+    if (!isEmailAllowed(email)) return { success: true, notice };
+
+    this.emailService.assertConfigured();
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, emailVerifiedAt: true, passwordHash: true, status: true },
+    });
+    if (
+      !user ||
+      !user.emailVerifiedAt ||
+      !user.passwordHash ||
+      !['ACTIVE', 'PAUSED'].includes(user.status)
+    ) {
+      return { success: true, notice };
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = hashToken(token);
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: now },
+      }),
+      this.prisma.passwordResetToken.create({
+        data: { userId: user.id, tokenHash, expiresAt: new Date(now.getTime() + 30 * 60_000) },
+      }),
+    ]);
+
+    const configuredOrigin = process.env.WEB_ORIGIN?.split(',')[0]?.trim();
+    const origin = configuredOrigin || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000');
+    if (!origin) throw new ServiceUnavailableException('Password reset is not configured. Please try again later.');
+    const resetUrl = new URL('/reset-password/', origin);
+    resetUrl.searchParams.set('token', token);
+
+    try {
+      await this.emailService.sendPasswordResetEmail(email, resetUrl.toString());
+    } catch (error) {
+      await this.prisma.passwordResetToken.updateMany({
+        where: { tokenHash, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      if (!(error instanceof ServiceUnavailableException)) throw error;
+      this.logger.error('Password reset email delivery failed.');
+    }
+    return { success: true, notice };
+  }
+
+  async resetPassword(token: string, password: string) {
+    const tokenHash = hashToken(token);
+    const reset = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: { user: { select: { id: true, emailVerifiedAt: true, status: true } } },
+    });
+    const now = new Date();
+    if (
+      !reset ||
+      reset.usedAt ||
+      reset.expiresAt <= now ||
+      !reset.user.emailVerifiedAt ||
+      !['ACTIVE', 'PAUSED'].includes(reset.user.status)
+    ) {
+      throw new BadRequestException('The password reset link is invalid or expired. Request a new one.');
+    }
+
+    const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+    await this.prisma.$transaction(async (tx) => {
+      const consumed = await tx.passwordResetToken.updateMany({
+        where: { id: reset.id, usedAt: null, expiresAt: { gt: new Date() } },
+        data: { usedAt: new Date() },
+      });
+      if (consumed.count !== 1) {
+        throw new BadRequestException('The password reset link is invalid or expired. Request a new one.');
+      }
+
+      const updated = await tx.user.updateMany({
+        where: {
+          id: reset.user.id,
+          emailVerifiedAt: { not: null },
+          status: { in: ['ACTIVE', 'PAUSED'] },
+        },
+        data: { passwordHash },
+      });
+      if (updated.count !== 1) {
+        throw new BadRequestException('This account cannot reset its password.');
+      }
+
+      await tx.passwordResetToken.updateMany({
+        where: { userId: reset.user.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      await tx.refreshSession.updateMany({
+        where: { userId: reset.user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    });
+    return { success: true, notice: 'Your password has been reset. You can now sign in.' };
   }
 
   private async sendVerification(userId: string, email: string): Promise<void> {

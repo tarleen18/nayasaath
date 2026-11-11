@@ -27,10 +27,41 @@ export class EmailService {
   }
 
   async sendVerificationEmail(email: string, code: string): Promise<void> {
-    this.assertConfigured();
-
     const text = `Your NayaSaath email verification code is ${code}.\n\nIt expires in 30 minutes and can only be used once. If you did not request this, you can ignore this message.`;
     const html = `<p>Your NayaSaath email verification code is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px">${code}</p><p>It expires in 30 minutes and can only be used once. If you did not request this, you can ignore this message.</p>`;
+    await this.sendEmail(
+      email,
+      'Your NayaSaath verification code',
+      text,
+      html,
+      'Unable to send the verification email. Please try again later.',
+      'Failed to deliver an email verification message.',
+    );
+  }
+
+  async sendPasswordResetEmail(email: string, resetUrl: string): Promise<void> {
+    const text = `Use this link to reset your NayaSaath password:\n\n${resetUrl}\n\nThis link expires in 30 minutes and can only be used once. If you did not request a password reset, you can ignore this message.`;
+    const html = `<p>Use this link to reset your NayaSaath password:</p><p><a href="${resetUrl}">Reset your password</a></p><p>This link expires in 30 minutes and can only be used once. If you did not request a password reset, you can ignore this message.</p>`;
+    await this.sendEmail(
+      email,
+      'Reset your NayaSaath password',
+      text,
+      html,
+      'Unable to send password reset instructions. Please try again later.',
+      'Failed to deliver a password reset message.',
+    );
+  }
+
+  private async sendEmail(
+    email: string,
+    subject: string,
+    text: string,
+    html: string,
+    failureMessage: string,
+    failureLog: string,
+  ): Promise<void> {
+    this.assertConfigured();
+
     if (process.env.EMAIL_PROVIDER === 'resend' || process.env.SMTP_HOST === 'smtp.resend.com') {
       try {
         const apiKey = process.env.RESEND_API_KEY ?? process.env.SMTP_PASSWORD;
@@ -43,21 +74,21 @@ export class EmailService {
           body: JSON.stringify({
             from: process.env.EMAIL_FROM,
             to: [email],
-            subject: 'Your NayaSaath verification code',
+            subject,
             text,
             html,
           }),
           signal: AbortSignal.timeout(15_000),
         });
         if (!response.ok) {
-          this.logger.error(`Resend rejected an email verification message (HTTP ${response.status}).`);
-          throw new ServiceUnavailableException('Unable to send the verification email. Please try again later.');
+          this.logger.error(`Resend rejected an email message (HTTP ${response.status}).`);
+          throw new ServiceUnavailableException(failureMessage);
         }
         return;
       } catch (error) {
         if (error instanceof ServiceUnavailableException) throw error;
-        this.logger.error('Failed to deliver an email verification message through Resend.', error instanceof Error ? error.stack : undefined);
-        throw new ServiceUnavailableException('Unable to send the verification email. Please try again later.');
+        this.logger.error(`${failureLog} through Resend.`, error instanceof Error ? error.stack : undefined);
+        throw new ServiceUnavailableException(failureMessage);
       }
     }
 
@@ -80,13 +111,13 @@ export class EmailService {
       await transport.sendMail({
         from: process.env.EMAIL_FROM,
         to: email,
-        subject: 'Your NayaSaath verification code',
+        subject,
         text,
         html,
       });
     } catch (error) {
-      this.logger.error('Failed to deliver an email verification message.', error instanceof Error ? error.stack : undefined);
-      throw new ServiceUnavailableException('Unable to send the verification email. Please try again later.');
+      this.logger.error(failureLog, error instanceof Error ? error.stack : undefined);
+      throw new ServiceUnavailableException(failureMessage);
     } finally {
       transport.close();
     }
