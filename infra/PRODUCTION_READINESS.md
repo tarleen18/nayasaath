@@ -47,7 +47,7 @@ No real member onboarding until every critical gate above is assigned to an owne
 
 ### Limited private profile persistence
 
-The Render Blueprint can enable `PRIVATE_PROFILE_MODE=true` while leaving `AUTH_ONLY_MODE=true`. This exposes only authenticated owner profile read/save and preference save endpoints. Publishing, discovery, messaging, verification, safety, and admin endpoints remain unavailable. Profile data is stored in the production database, so use synthetic data only until the release gates above, including privacy notice, retention, deletion, and operational access controls, are approved.
+The Render Blueprint is configured with `AUTH_ONLY_MODE=true`, `PRIVATE_PROFILE_MODE=true`, and `PUBLIC_SITE_ONLY=true`. This keeps the public marketing site available, blocks new registration/email verification and profile/preferences writes, and leaves authenticated owner profile reads available for existing members. Publishing, discovery, messaging, verification submissions, uploads, safety, and admin endpoints remain unavailable. No waitlist data is collected. This is a public website with a restricted member service, not a public matchmaking launch.
 
 
 ## Authentication and verification milestone update

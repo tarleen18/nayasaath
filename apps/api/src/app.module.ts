@@ -21,6 +21,7 @@ import { ConnectionsController } from './connections/connections.controller';
 import { ConnectionsService } from './connections/connections.service';
 import { EmailService } from './auth/email.service';
 import { AuthRateLimitGuard } from './auth/auth-rate-limit.guard';
+import { PublicLaunchGuard } from './public-launch.guard';
 
 const authOnlyMode = process.env.AUTH_ONLY_MODE === 'true';
 const privateProfileMode = process.env.PRIVATE_PROFILE_MODE === 'true';
@@ -41,7 +42,7 @@ const fullApiControllers = [
   SafetyController,
   ConnectionsController,
 ];
-const authOnlyProviders = [PrismaService, AuthService, EmailService, JwtAuthGuard, AuthRateLimitGuard];
+const authOnlyProviders = [PrismaService, AuthService, EmailService, JwtAuthGuard, AuthRateLimitGuard, PublicLaunchGuard];
 const privateProfileProviders = privateProfileMode ? [ProfilesService] : [];
 const fullApiProviders = [
   ...authOnlyProviders,

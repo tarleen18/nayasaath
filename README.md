@@ -52,7 +52,7 @@ pnpm dev:web
 
 The web app is configured for a static export. A GitHub Actions workflow publishes it to GitHub Pages on pushes to `main`. The repository Pages setting must use **GitHub Actions** as its build and deployment source. The workflow build output is `apps/web/.next-github-pages`; the `apps/web/public/CNAME` file binds `nayasaath.me`. DNS should have the four GitHub Pages apex A records and `www` as a CNAME to `tarleen18.github.io`. Preserve unrelated mail records.
 
-GitHub Pages hosts only the static frontend; it does not run the NestJS API or database. The repository includes a free-tier Render Blueprint for an API that keeps auth-only protections enabled and exposes only health, authentication, and authenticated private profile read/save/preferences routes. Profile publishing, discovery, messaging, safety, verification, and admin routes remain disabled. The database migration is applied by the Render start command. Do not use real member details until the remaining production launch gates are complete.
+GitHub Pages hosts only the static frontend; it does not run the NestJS API or database. The repository includes a free-tier Render Blueprint configured for public-site-only mode. It keeps auth-only protections enabled, blocks new registration/email verification and profile writes, and retains authenticated access for existing members to read their own saved profile. Profile publishing, discovery, messaging, safety, verification submissions, uploads, and admin routes are disabled. The database migration is applied by the Render start command. The public website is not a public member-service launch; do not collect real member details until the remaining production launch gates are complete.
 
 To enable registration, email-code verification, and login:
 
@@ -112,7 +112,7 @@ Base path: `/api/v1`. DTO validation is enabled globally. Authenticated routes u
 
 ## Member profile, discovery, connections and safety API (source milestone)
 
-All endpoints below require a member bearer access token. In production, `AUTH_ONLY_MODE=true` remains enabled and `PRIVATE_PROFILE_MODE=true` adds only the three private profile routes listed below. A user must acknowledge the in-product private-storage notice before profile or preference writes; profile saves remain hidden. Publishing, discovery, connections, messaging, safety, verification and admin APIs are not exposed in this mode. Unanswered child information remains distinct from an explicit “no”. The production database migration is applied by Render's start command. Use synthetic data only until all launch gates are complete; no real-member data test should be performed.
+All endpoints below require a member bearer access token. In production, `AUTH_ONLY_MODE=true`, `PRIVATE_PROFILE_MODE=true`, and `PUBLIC_SITE_ONLY=true` keep the public website in a restricted state. Existing members can read their own saved profile, but new registration, email verification, profile writes, and preference writes are paused. Publishing, discovery, connections, messaging, safety, verification, uploads, and admin APIs are not exposed. The public website does not collect waitlist information.
 
 - `GET /api/v1/profiles/me` — fetch the signed-in member's profile.
 - `POST /api/v1/profiles/me` — create/update profile details and date of birth. Server enforces 18+ eligibility; profiles remain hidden by default.

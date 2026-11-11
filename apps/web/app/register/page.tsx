@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { PasswordField } from '../components/password-field';
 
 const API = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '');
@@ -28,9 +28,31 @@ export default function RegisterPage() {
   const [resultStatus, setResultStatus] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [publicSiteOnly, setPublicSiteOnly] = useState(true);
+  const [launchStatusLoaded, setLaunchStatusLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function loadLaunchStatus() {
+      try {
+        if (!API) throw new Error('API is not configured.');
+        const response = await fetch(`${API}/health/launch-status`);
+        if (!response.ok) throw new Error('Could not load launch status.');
+        const result = await response.json() as { publicSiteOnly?: boolean };
+        if (active) setPublicSiteOnly(result.publicSiteOnly !== false);
+      } catch {
+        if (active) setPublicSiteOnly(true);
+      } finally {
+        if (active) setLaunchStatusLoaded(true);
+      }
+    }
+    void loadLaunchStatus();
+    return () => { active = false; };
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (publicSiteOnly) return;
     setBusy(true);
     setError('');
     setMessage('');
@@ -51,6 +73,16 @@ export default function RegisterPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (!launchStatusLoaded || publicSiteOnly) {
+    return <main className="shell" style={{ maxWidth: 560, paddingTop: 70, paddingBottom: 80 }}>
+      <a className="brand" href="/">NayaSaath.</a>
+      <p className="eyebrow" style={{ marginTop: 38 }}>COMING SOON</p>
+      <h1 className="serif" style={{ fontSize: 42, marginTop: 12 }}>We’re preparing a thoughtful launch.</h1>
+      <p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>New member registration and profile editing are currently closed while we complete privacy, photo-safety, verification, and support safeguards. We are not collecting waitlist details on this page.</p>
+      <a className="button secondary" href="/" style={{ marginTop: 12 }}>Back to home</a>
+    </main>;
   }
 
   return <main className="shell" style={{ maxWidth: 560, paddingTop: 70, paddingBottom: 80 }}>

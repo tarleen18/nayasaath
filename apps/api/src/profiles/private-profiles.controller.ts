@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { PublicLaunchGuard } from '../public-launch.guard';
 import { PartnerPreferenceDto, UpsertProfileDto } from './profile.dto';
 import { ProfilesService } from './profiles.service';
 
@@ -15,11 +16,13 @@ export class PrivateProfilesController {
   }
 
   @Post()
+  @UseGuards(PublicLaunchGuard)
   saveMine(@CurrentUser() user: { id: string }, @Body() dto: UpsertProfileDto) {
     return this.profiles.saveMine(user.id, dto);
   }
 
   @Post('preferences')
+  @UseGuards(PublicLaunchGuard)
   savePreferences(@CurrentUser() user: { id: string }, @Body() dto: PartnerPreferenceDto) {
     return this.profiles.savePreferences(user.id, dto);
   }

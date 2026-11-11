@@ -174,6 +174,7 @@ export default function ProfileSetupPage() {
   const [preferenceValues, setPreferenceValues] = useState<PreferenceValues>(emptyPreferences);
   const [profileExists, setProfileExists] = useState(false);
   const [privateStorageAcknowledged, setPrivateStorageAcknowledged] = useState(false);
+  const [publicSiteOnly, setPublicSiteOnly] = useState(true);
   const [pageStatus, setPageStatus] = useState<'loading' | 'ready' | 'unavailable' | 'error'>('loading');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -203,6 +204,10 @@ export default function ProfileSetupPage() {
 
     async function loadProfile() {
       try {
+        const launchResponse = await memberApiFetch('/health/launch-status');
+        const launchStatus = await launchResponse.json().catch(() => ({} as { publicSiteOnly?: boolean })) as { publicSiteOnly?: boolean };
+        if (active) setPublicSiteOnly(!launchResponse.ok || launchStatus.publicSiteOnly !== false);
+
         const response = await memberApiFetch('/profiles/me');
         if (response.status === 404) {
           if (active) setPageStatus('unavailable');
@@ -224,6 +229,7 @@ export default function ProfileSetupPage() {
         if (active) {
           setError(loadError instanceof Error ? loadError.message : 'Could not load your profile.');
           setPageStatus('error');
+          setPublicSiteOnly(true);
         }
       }
     }
@@ -378,6 +384,8 @@ export default function ProfileSetupPage() {
           <h2 className="serif">{sectionTitles[step]}</h2>
           <p className="form-subtitle">{step === 2 ? 'These preferences are saved privately. Member discovery is not enabled in this release.' : 'Only profile fields supported by the member API are collected here. You can leave optional details blank.'}</p>
 
+          {publicSiteOnly && <p role="status" className="field-guidance">Profile editing is paused while NayaSaath prepares its launch. You can review your saved details, but changes cannot be saved right now.</p>}
+          <fieldset disabled={publicSiteOnly} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <label className="field-guidance field-wide" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 20 }}>
             <input type="checkbox" checked={privateStorageAcknowledged} onChange={event => setPrivateStorageAcknowledged(event.target.checked)} />
             <span>I understand that saving stores my profile details, date of birth, and preferences in the production database. They will not be visible to other members in this release. I will use synthetic details until the service's privacy, retention, and deletion safeguards are approved.</span>
@@ -422,12 +430,13 @@ export default function ProfileSetupPage() {
             <strong>Your profile stays private</strong>
             <p>Profile publishing, discovery, messaging, verification, and safety tools are not enabled in this release. Your profile details and preferences are available only through your authenticated account endpoints.</p>
           </div>}
+          </fieldset>
 
           {(error || message) && <p role={error ? 'alert' : 'status'} style={{ color: error ? '#a22' : '#356647', lineHeight: 1.6 }}>{error || message}</p>}
           <div className="form-actions">
             <button type="button" className="outline-button" disabled={busy || step === 0} onClick={() => setStep(value => value - 1)}>Back</button>
-            {(step === 0 || step === 1) && <button type="button" className="outline-button" disabled={busy} onClick={() => void saveProfile()}>{busy ? 'Saving…' : profileExists ? 'Save profile' : 'Save privately'}</button>}
-            {step === 2 && <button type="button" className="outline-button" disabled={busy} onClick={() => void savePreferences()}>{busy ? 'Saving…' : 'Save preferences'}</button>}
+            {(step === 0 || step === 1) && <button type="button" className="outline-button" disabled={busy || publicSiteOnly} onClick={() => void saveProfile()}>{publicSiteOnly ? 'Editing paused' : busy ? 'Saving…' : profileExists ? 'Save profile' : 'Save privately'}</button>}
+            {step === 2 && <button type="button" className="outline-button" disabled={busy || publicSiteOnly} onClick={() => void savePreferences()}>{publicSiteOnly ? 'Editing paused' : busy ? 'Saving…' : 'Save preferences'}</button>}
             <button type="button" className="button" disabled={busy || step === sectionTitles.length - 1} onClick={() => setStep(value => Math.min(value + 1, sectionTitles.length - 1))}>Continue <span>→</span></button>
           </div>
         </div>

@@ -22,7 +22,7 @@ type ProfileResponse = {
 };
 
 const quickLinks = [
-  { icon: '◉', title: 'My profile', desc: 'Choose what you share and when', meta: 'Manage', href: '/profile/setup/' },
+  { icon: '◉', title: 'My profile', desc: 'View your saved private details', meta: 'View', href: '/profile/setup/' },
   { icon: '♡', title: 'Discover matches', desc: 'Search eligible member profiles', meta: 'Explore', href: '/discover/' },
 ];
 export default function DashboardPage() {
@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [signingOut, setSigningOut] = useState(false);
   const [profile, setProfile] = useState<DashboardProfile | null>(null);
   const [profileStatus, setProfileStatus] = useState<'loading' | 'ready' | 'unavailable' | 'error'>('loading');
+  const [publicSiteOnly, setPublicSiteOnly] = useState(true);
   const [profileError, setProfileError] = useState('');
   const [profileAttempt, setProfileAttempt] = useState(0);
   const memberEmail = memberSession.status === 'authenticated' ? memberSession.email : null;
@@ -50,6 +51,10 @@ export default function DashboardPage() {
 
     async function loadProfile() {
       try {
+        const launchResponse = await memberApiFetch('/health/launch-status');
+        const launchStatus = await launchResponse.json().catch(() => ({} as { publicSiteOnly?: boolean })) as { publicSiteOnly?: boolean };
+        if (active) setPublicSiteOnly(!launchResponse.ok || launchStatus.publicSiteOnly !== false);
+
         const response = await memberApiFetch('/profiles/me');
         if (response.status === 404) {
           if (active) setProfileStatus('unavailable');
@@ -72,6 +77,7 @@ export default function DashboardPage() {
         if (active) {
           setProfileError(error instanceof Error ? error.message : 'Could not load your profile.');
           setProfileStatus('error');
+          setPublicSiteOnly(true);
         }
       }
     }
@@ -121,7 +127,7 @@ export default function DashboardPage() {
       <header className="app-topbar"><div><span className="crumb">Your space</span><span className="crumb-sep">/</span><strong>Home</strong></div><div className="top-actions"><button className="icon-button" aria-label="Notifications">♧</button><div className="top-avatar">{memberInitial}</div></div></header>
       <div className="dashboard-content redesigned-content">
         <section className="welcome-hero">
-          <div className="welcome-copy"><span className="eyebrow">A NEW CHAPTER, AT YOUR PACE</span><h1 className="serif">{profile?.displayName ? `Welcome, ${profile.displayName}.` : memberEmail ? 'Welcome back.' : 'Good to have you here.'}</h1><p>{profile ? 'Your private profile is saved here. You can review or update it whenever you like.' : memberEmail ? 'Your account is ready. Start your private profile whenever you’re ready.' : 'Make space for a connection that feels right. Start with a little introduction about yourself.'}</p><Link className="button" href="/profile/setup/">{profile ? 'View your profile' : memberEmail ? 'Create your profile' : 'Create your profile'} <span>↗</span></Link></div>
+          <div className="welcome-copy"><span className="eyebrow">A NEW CHAPTER, AT YOUR PACE</span><h1 className="serif">{profile?.displayName ? `Welcome, ${profile.displayName}.` : memberEmail ? 'Welcome back.' : 'Good to have you here.'}</h1><p>{profile ? publicSiteOnly ? 'Your saved profile is private. Editing is paused while NayaSaath prepares its launch.' : 'Your private profile is saved here. You can review or update it whenever you like.' : memberEmail ? 'Member profile setup is paused while NayaSaath prepares its launch.' : 'Make space for a connection that feels right. Start with a little introduction about yourself.'}</p><Link className="button" href={profile ? '/profile/setup/' : '/register/'}>{profile ? 'View your profile' : 'Launch update'} <span>↗</span></Link></div>
           <div className="welcome-art" aria-hidden="true"><div className="art-orbit orbit-one"></div><div className="art-orbit orbit-two"></div><div className="art-sun">✦</div><div className="art-caption">A meaningful<br/>beginning</div></div>
         </section>
         <div className="preview-alert"><span>i</span><div><strong>Member discovery is being prepared</strong><br/>No sample or unverified profiles are shown. You can search real, eligible member profiles when discovery is available.</div></div>
@@ -138,7 +144,7 @@ export default function DashboardPage() {
               <p style={{ margin: '0 0 6px' }}>{[profile.profession, profile.education].filter(Boolean).join(' · ') || profile.maritalStatus.replaceAll('_', ' ').toLowerCase()}</p>
               <p style={{ margin: '0 0 12px' }}>Your profile is not displayed to other members in this release. Publishing and discovery are not enabled.</p>
             </div>}
-            {profileStatus === 'ready' && !profile && <p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>Your profile hasn’t been saved yet. Add your introduction and life journey to see it here.</p>}
+            {profileStatus === 'ready' && !profile && <p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>{publicSiteOnly ? 'Profile setup is paused while NayaSaath prepares its launch.' : 'Your profile hasn’t been saved yet. Add your introduction and life journey to see it here.'}</p>}
             {profileStatus === 'ready' && <><div className="progress-track"><span style={{ width: `${progressPercent}%` }} /></div><div className="progress-caption"><span>{profile ? 'Your profile progress' : 'Start when you’re ready'}</span><span>{completedSteps} of 5 steps</span></div></>}
             <ul className="todo-list">
               <li className="done"><span>✓</span><div><strong>Account created</strong><small>Your NayaSaath space is ready</small></div></li>

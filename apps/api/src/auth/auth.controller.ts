@@ -2,14 +2,15 @@ import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthRateLimitGuard } from './auth-rate-limit.guard';
 import { JwtAuthGuard } from './auth.guard';
+import { PublicLaunchGuard } from '../public-launch.guard';
 import { EmailAddressDto, LoginDto, PasswordResetDto, RefreshDto, RegisterDto, RequestOtpDto, VerifyEmailDto, VerifyOtpDto } from './auth.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
-  @Post('register') @UseGuards(AuthRateLimitGuard) register(@Body() body: RegisterDto) { return this.auth.register(body.email, body.password, body.phoneE164); }
-  @Post('email/verify') @UseGuards(AuthRateLimitGuard) verifyEmail(@Body() body: VerifyEmailDto) { return this.auth.verifyEmail(body.email, body.code); }
-  @Post('email/resend') @UseGuards(AuthRateLimitGuard) resendVerification(@Body() body: EmailAddressDto) { return this.auth.resendVerification(body.email); }
+  @Post('register') @UseGuards(AuthRateLimitGuard, PublicLaunchGuard) register(@Body() body: RegisterDto) { return this.auth.register(body.email, body.password, body.phoneE164); }
+  @Post('email/verify') @UseGuards(AuthRateLimitGuard, PublicLaunchGuard) verifyEmail(@Body() body: VerifyEmailDto) { return this.auth.verifyEmail(body.email, body.code); }
+  @Post('email/resend') @UseGuards(AuthRateLimitGuard, PublicLaunchGuard) resendVerification(@Body() body: EmailAddressDto) { return this.auth.resendVerification(body.email); }
   @Post('password/forgot') @UseGuards(AuthRateLimitGuard) requestPasswordReset(@Body() body: EmailAddressDto) { return this.auth.requestPasswordReset(body.email); }
   @Post('password/reset') @UseGuards(AuthRateLimitGuard) resetPassword(@Body() body: PasswordResetDto) { return this.auth.resetPassword(body.token, body.password); }
   @Post('login') @UseGuards(AuthRateLimitGuard) login(@Body() body: LoginDto) { return this.auth.login(body.email, body.password); }
