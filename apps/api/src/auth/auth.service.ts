@@ -7,7 +7,9 @@ import { EmailService } from './email.service';
 import { isEmailAllowed } from './email-access-policy';
 
 const hashToken = (value: string) => createHash('sha256').update(value).digest('hex');
-const verificationNotice = 'If this address can be registered, a verification code will be sent.';
+const verificationNotice = 'If this email has a pending account, check your inbox for a verification code. If you already have an account, sign in or reset your password.';
+const accountExistsNotice = 'An account with this email already exists. Sign in or reset your password.';
+const verificationSentNotice = 'A verification code was sent. Check your inbox and spam folder.';
 
 @Injectable()
 export class AuthService {
@@ -32,7 +34,19 @@ export class AuthService {
 
   async register(emailInput: string, password: string, phoneE164?: string) {
     const email = emailInput.trim().toLowerCase();
-    if (!isEmailAllowed(email)) return { success: true, notice: verificationNotice };
+    if (!isEmailAllowed(email)) return { success: true, status: 'request_processed', notice: verificationNotice };
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, emailVerifiedAt: true, status: true },
+    });
+    if (existingUser) {
+      if (existingUser.emailVerifiedAt || existingUser.status !== 'PENDING') {
+        return { success: true, status: 'already_registered', notice: accountExistsNotice };
+      }
+      return this.resendVerification(email);
+    }
+
     this.emailService.assertConfigured();
     const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
     let user: { id: string };
@@ -43,13 +57,21 @@ export class AuthService {
       });
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
-        await this.resendVerification(email);
-        return { success: true, notice: verificationNotice };
+        const duplicateEmail = await this.prisma.user.findUnique({
+          where: { email },
+          select: { id: true, emailVerifiedAt: true, status: true },
+        });
+        if (duplicateEmail) {
+          if (duplicateEmail.emailVerifiedAt || duplicateEmail.status !== 'PENDING') {
+            return { success: true, status: 'already_registered', notice: accountExistsNotice };
+          }
+          return this.resendVerification(email);
+        }
       }
       throw error;
     }
     await this.sendVerification(user.id, email);
-    return { success: true, notice: verificationNotice };
+    return { success: true, status: 'verification_sent', notice: verificationSentNotice };
   }
 
   async login(emailInput: string, password: string) {
@@ -139,26 +161,36 @@ export class AuthService {
 
   async resendVerification(emailInput: string) {
     const email = emailInput.trim().toLowerCase();
-    if (!isEmailAllowed(email)) return { success: true, notice: verificationNotice };
-
-    this.emailService.assertConfigured();
+    if (!isEmailAllowed(email)) return { success: true, status: 'request_processed', notice: verificationNotice };
     const user = await this.prisma.user.findUnique({
       where: { email },
       select: { id: true, email: true, emailVerifiedAt: true, status: true },
     });
-    if (!user || user.emailVerifiedAt || user.status !== 'PENDING') {
-      return { success: true, notice: verificationNotice };
+    if (!user) {
+      return { success: true, status: 'request_processed', notice: verificationNotice };
+    }
+    if (user.emailVerifiedAt || user.status !== 'PENDING') {
+      return { success: true, status: 'already_registered', notice: accountExistsNotice };
     }
 
     const cooldownStart = new Date(Date.now() - 60_000);
     const recentToken = await this.prisma.emailVerificationToken.findFirst({
-      where: { userId: user.id, createdAt: { gt: cooldownStart } },
-      select: { id: true },
+      where: { userId: user.id, consumedAt: null, createdAt: { gt: cooldownStart } },
+      select: { createdAt: true },
     });
-    if (recentToken) return { success: true, notice: verificationNotice };
+    if (recentToken) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((recentToken.createdAt.getTime() + 60_000 - Date.now()) / 1000));
+      return {
+        success: true,
+        status: 'verification_recently_sent',
+        retryAfterSeconds,
+        notice: 'A verification code was sent recently. Check your inbox and spam folder, then wait a minute before requesting another.',
+      };
+    }
 
+    this.emailService.assertConfigured();
     await this.sendVerification(user.id, email);
-    return { success: true, notice: verificationNotice };
+    return { success: true, status: 'verification_sent', notice: verificationSentNotice };
   }
 
   async requestPasswordReset(emailInput: string) {
@@ -267,7 +299,7 @@ export class AuthService {
     const code = String(randomInt(100000, 1000000));
     const secret = process.env.JWT_REFRESH_SECRET;
     if (!secret) throw new ServiceUnavailableException('Email verification is not configured. Please try again later.');
-    await this.prisma.$transaction([
+    const [, verificationToken] = await this.prisma.$transaction([
       this.prisma.emailVerificationToken.updateMany({
         where: { userId, consumedAt: null },
         data: { consumedAt: new Date() },
@@ -280,7 +312,15 @@ export class AuthService {
         },
       }),
     ]);
-    await this.emailService.sendVerificationEmail(email, code);
+    try {
+      await this.emailService.sendVerificationEmail(email, code);
+    } catch (error) {
+      await this.prisma.emailVerificationToken.updateMany({
+        where: { id: verificationToken.id, consumedAt: null },
+        data: { consumedAt: new Date() },
+      });
+      throw error;
+    }
   }
 
   async requestOtp(userId: string, channel: 'email' | 'phone') {

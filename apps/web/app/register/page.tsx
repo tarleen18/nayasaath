@@ -25,6 +25,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const [resultStatus, setResultStatus] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -33,14 +34,17 @@ export default function RegisterPage() {
     setBusy(true);
     setError('');
     setMessage('');
+    setResultStatus('');
     try {
       if (mode === 'register') {
-        await post('/auth/register', { email, password });
+        const result = await post('/auth/register', { email, password });
         setPassword('');
-        setMessage('If this address can be registered, a verification code has been sent. Enter it on the verification page to activate your account.');
+        setResultStatus(result.status ?? '');
+        setMessage(result.notice || 'The request could not be completed.');
       } else {
-        await post('/auth/email/resend', { email });
-        setMessage('If this address has a pending account, a new verification code will be sent.');
+        const result = await post('/auth/email/resend', { email });
+        setResultStatus(result.status ?? '');
+        setMessage(result.notice || 'The request could not be completed.');
       }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'The request could not be completed.');
@@ -69,14 +73,18 @@ export default function RegisterPage() {
       </label>}
       {error && <p role="alert" style={{ color: '#a22', margin: 0 }}>{error}</p>}
       {message && <p role="status" style={{ color: '#356647', lineHeight: 1.6, margin: 0 }}>{message}</p>}
-      {message && <a href={`/verify-email?email=${encodeURIComponent(email.trim())}`} style={{ color: 'var(--wine)', fontWeight: 600 }}>
+      {(resultStatus === 'verification_sent' || resultStatus === 'verification_recently_sent') && <a href={`/verify-email?email=${encodeURIComponent(email.trim())}`} style={{ color: 'var(--wine)', fontWeight: 600 }}>
         Enter your verification code
       </a>}
+      {resultStatus === 'already_registered' && <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <a href="/login" style={{ color: 'var(--wine)', fontWeight: 600 }}>Sign in</a>
+        <a href="/forgot-password" style={{ color: 'var(--wine)', fontWeight: 600 }}>Reset your password</a>
+      </div>}
       <button className="button" disabled={busy}>{busy ? 'Please wait…' : mode === 'register' ? 'Create account' : 'Send verification code'}</button>
     </form>
     <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 22 }}>
       {mode === 'register' ? 'Already registered? ' : 'Need an account? '}
-      <button type="button" className="textButton" onClick={() => { setMode(mode === 'register' ? 'resend' : 'register'); setError(''); setMessage(''); }}>
+      <button type="button" className="textButton" onClick={() => { setMode(mode === 'register' ? 'resend' : 'register'); setError(''); setMessage(''); setResultStatus(''); }}>
         {mode === 'register' ? 'Resend verification' : 'Create one'}
       </button>
     </p>
