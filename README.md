@@ -7,6 +7,7 @@ India-first matrimonial product for adults seeking marriage, including never-mar
 - `apps/api`: NestJS API, Prisma data model, password authentication, rotating refresh sessions, member access guard, admin authentication and verification review APIs.
 - `apps/web/app/admin`: staff sign-in and verification queue interface (access token is held in memory only).
 - `apps/web`: Next.js member-facing web application foundation.
+- The member dashboard and profile setup are design previews: sample profiles are illustrative, and profile fields stay in page memory rather than being sent to or saved by the API.
 - `apps/mobile`: Expo React Native application foundation.
 - `infra`: deployment/security notes and operational runbooks.
 
