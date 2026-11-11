@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PasswordField } from '../components/password-field';
 import { setMemberSession } from '../session';
@@ -17,6 +17,13 @@ export default function LoginPage() {
   const [resending, setResending] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState('');
+  const [logoutNotice, setLogoutNotice] = useState('');
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('logout') === 'unconfirmed') {
+      setLogoutNotice('You are signed out in this tab, but the server could not confirm token revocation. If you suspect someone else accessed your account, reset your password.');
+    }
+  }, []);
 
   async function resendVerification() {
     setResending(true);
@@ -79,6 +86,7 @@ export default function LoginPage() {
     <p className="eyebrow" style={{ marginTop: 38 }}>MEMBER SIGN IN</p>
     <h1 className="serif" style={{ fontSize: 42, marginTop: 12 }}>Welcome back.</h1>
     <p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>Your email must be verified before you can sign in.</p>
+    {logoutNotice && <p role="status" style={{ color: '#8a4b16', lineHeight: 1.6 }}>{logoutNotice}</p>}
     <form onSubmit={submit} style={{ display: 'grid', gap: 16, marginTop: 28 }}>
       <label>Email address
         <input required type="email" autoComplete="username" value={email} onChange={event => setEmail(event.target.value)} style={fieldStyle} />

@@ -6,8 +6,8 @@ India-first matrimonial product for adults seeking marriage, including never-mar
 
 - `apps/api`: NestJS API, Prisma data model, password authentication, rotating refresh sessions, member access guard, admin authentication and verification review APIs.
 - `apps/web/app/admin`: staff sign-in and verification queue interface (access token is held in memory only).
-- `apps/web`: Next.js member-facing web application foundation.
-- Successful sign-in redirects to `/dashboard/` and keeps the session in tab memory; reloading or closing the tab ends it. The member dashboard and profile setup are design previews: sample profiles are illustrative, and profile fields stay in page memory rather than being sent to or saved by the API.
+- `apps/web`: Next.js member-facing web application foundation, with authenticated profile editing and a discovery search UI.
+- Successful sign-in redirects to `/dashboard/`. Access and rotating refresh tokens stay in tab memory; an expired access token is refreshed when a protected API request receives an authorization failure. Dashboard and profile setup verify the session with `/auth/me`, and sign-out revokes the refresh session. Reloading or closing the tab ends the session and requires signing in again. Profile setup is wired to the protected profile API; it refuses to collect profile details while the API is in auth-only mode. Dashboard sample matches are illustrative.
 - `apps/mobile`: Expo React Native application foundation.
 - `infra`: deployment/security notes and operational runbooks.
 
@@ -110,9 +110,11 @@ This repository now includes working source implementations for password-based m
 
 Base path: `/api/v1`. DTO validation is enabled globally. Authenticated routes use bearer access tokens. Production deployment must use a managed secret store, TLS, private networking for data services and least-privilege service accounts.
 
-## Member profile, discovery, connections and safety API (new source milestone)
+## Member profile, discovery, connections and safety API (source milestone)
 
-All endpoints below require a member bearer access token. They are API source implementations; runtime/build/database verification is still pending.
+All endpoints below require a member bearer access token. Profile and preference persistence is wired to the profile editor; the profile form loads private data, saves hidden by default, and supports explicit hide/publish actions. The form only asks for fields currently supported by the API, and server-side age validation requires members to be 18 or older. Unanswered child information remains distinct from an explicit “no”. Prisma schema validation and application builds pass; a database migration and integration test have not been run in this environment.
+
+The Render deployment remains in `AUTH_ONLY_MODE=true`, so it does not expose the member profile/discovery/connections/safety controllers. The profile and discovery screens report this and do not collect or display member details until those APIs are explicitly enabled after launch gates are complete. Discovery filters cover city, age range and marital status, and saved preferences cover age, city, marital status, children, education and languages. Connection actions are not yet wired in the client. No production deployment or real-member data test was performed.
 
 - `GET /api/v1/profiles/me` — fetch the signed-in member's profile.
 - `POST /api/v1/profiles/me` — create/update profile details and date of birth. Server enforces 18+ eligibility; profiles remain hidden by default.
