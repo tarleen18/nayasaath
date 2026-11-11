@@ -1,12 +1,14 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { PasswordField } from '../components/password-field';
 import { setMemberSession } from '../session';
 
 const API = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '');
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -62,9 +64,9 @@ export default function LoginPage() {
         setNeedsVerification(typeof detail === 'string' && detail.includes('Verify your email address'));
         throw new Error(detail || 'Sign in failed.');
       }
-      setMemberSession(data.accessToken, data.refreshToken);
+      setMemberSession(data.accessToken, data.refreshToken, data.user.email);
       setPassword('');
-      setMessage('You are signed in for this tab. Your session is held in memory and will end when you close or reload it.');
+      router.push('/dashboard/');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Sign in failed.');
     } finally {
