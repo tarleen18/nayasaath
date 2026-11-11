@@ -8,10 +8,11 @@ export class EmailService {
 
   assertConfigured(): void {
     const provider = process.env.EMAIL_PROVIDER;
+    const usesResendApi = provider === 'resend' || process.env.SMTP_HOST === 'smtp.resend.com';
     if (!process.env.EMAIL_FROM) {
       throw new ServiceUnavailableException('Email verification is not configured. Please try again later.');
     }
-    if (provider === 'resend' && process.env.RESEND_API_KEY) return;
+    if (usesResendApi && (process.env.RESEND_API_KEY || process.env.SMTP_PASSWORD)) return;
     const port = Number(process.env.SMTP_PORT);
     if (
       provider !== 'smtp' ||
@@ -30,12 +31,13 @@ export class EmailService {
 
     const text = `Your NayaSaath email verification code is ${code}.\n\nIt expires in 30 minutes and can only be used once. If you did not request this, you can ignore this message.`;
     const html = `<p>Your NayaSaath email verification code is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px">${code}</p><p>It expires in 30 minutes and can only be used once. If you did not request this, you can ignore this message.</p>`;
-    if (process.env.EMAIL_PROVIDER === 'resend') {
+    if (process.env.EMAIL_PROVIDER === 'resend' || process.env.SMTP_HOST === 'smtp.resend.com') {
       try {
+        const apiKey = process.env.RESEND_API_KEY ?? process.env.SMTP_PASSWORD;
         const response = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            Authorization: `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
