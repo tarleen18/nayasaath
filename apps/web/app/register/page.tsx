@@ -28,6 +28,7 @@ export default function RegisterPage() {
   const [resultStatus, setResultStatus] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [earlyAccessAcknowledged, setEarlyAccessAcknowledged] = useState(false);
   const [publicSiteOnly, setPublicSiteOnly] = useState(true);
   const [launchStatusLoaded, setLaunchStatusLoaded] = useState(false);
 
@@ -53,6 +54,10 @@ export default function RegisterPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (publicSiteOnly) return;
+    if (mode === 'register' && !earlyAccessAcknowledged) {
+      setError('Please acknowledge the limited early-access notice before creating an account.');
+      return;
+    }
     setBusy(true);
     setError('');
     setMessage('');
@@ -103,6 +108,13 @@ export default function RegisterPage() {
       {mode === 'register' && <label>Password (at least 12 characters)
         <PasswordField required minLength={12} autoComplete="new-password" value={password} onChange={setPassword} style={fieldStyle} />
       </label>}
+      {mode === 'register' && <div style={{ padding: 14, borderRadius: 10, background: '#f4efe6', color: 'var(--muted)', lineHeight: 1.6 }}>
+        <p style={{ margin: '0 0 10px' }}>This limited early-access release stores your account and private profile details in the production service. Profile details are not visible to other members. Use synthetic details only; do not submit real personal or family information, photos, or identity documents. Discovery and member messaging are not available.</p>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+          <input type="checkbox" checked={earlyAccessAcknowledged} onChange={event => setEarlyAccessAcknowledged(event.target.checked)} />
+          <span>I have read and understand this early-access limitation.</span>
+        </label>
+      </div>}
       {error && <p role="alert" style={{ color: '#a22', margin: 0 }}>{error}</p>}
       {message && <p role="status" style={{ color: '#356647', lineHeight: 1.6, margin: 0 }}>{message}</p>}
       {(resultStatus === 'verification_sent' || resultStatus === 'verification_recently_sent') && <a href={`/verify-email?email=${encodeURIComponent(email.trim())}`} style={{ color: 'var(--wine)', fontWeight: 600 }}>
@@ -112,7 +124,7 @@ export default function RegisterPage() {
         <a href="/login" style={{ color: 'var(--wine)', fontWeight: 600 }}>Sign in</a>
         <a href="/forgot-password" style={{ color: 'var(--wine)', fontWeight: 600 }}>Reset your password</a>
       </div>}
-      <button className="button" disabled={busy}>{busy ? 'Please wait…' : mode === 'register' ? 'Create account' : 'Send verification code'}</button>
+      <button className="button" disabled={busy || (mode === 'register' && !earlyAccessAcknowledged)}>{busy ? 'Please wait…' : mode === 'register' ? 'Create account' : 'Send verification code'}</button>
     </form>
     <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 22 }}>
       {mode === 'register' ? 'Already registered? ' : 'Need an account? '}

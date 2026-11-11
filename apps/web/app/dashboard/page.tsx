@@ -23,7 +23,7 @@ type ProfileResponse = {
 
 const quickLinks = [
   { icon: '◉', title: 'My profile', desc: 'View your saved private details', meta: 'View', href: '/profile/setup/' },
-  { icon: '♡', title: 'Discover matches', desc: 'Search eligible member profiles', meta: 'Explore', href: '/discover/' },
+  { icon: '♡', title: 'Discover matches', desc: 'Not available in this early-access release', meta: 'Coming later', href: '/discover/' },
 ];
 export default function DashboardPage() {
   const router = useRouter();
@@ -115,9 +115,9 @@ export default function DashboardPage() {
       <div className="sidebar-label">YOUR SPACE</div>
       <Link className="side-link active" href="/dashboard/"><span>⌂</span> Home</Link>
       <Link className="side-link" href="/profile/setup/"><span>◉</span> My profile</Link>
-      <Link className="side-link" href="/discover/"><span>♡</span> Discover matches</Link>
-      <a className="side-link" href="#interests"><span>✉</span> Interests</a>
-      <a className="side-link" href="#messages"><span>☏</span> Messages</a>
+      <span className="side-link" aria-disabled="true" style={{ opacity: 0.6, cursor: 'not-allowed' }}><span>♡</span> Discover matches — later</span>
+      <span className="side-link" aria-disabled="true" style={{ opacity: 0.6, cursor: 'not-allowed' }}><span>✉</span> Interests — later</span>
+      <span className="side-link" aria-disabled="true" style={{ opacity: 0.6, cursor: 'not-allowed' }}><span>☏</span> Messages — later</span>
       <div className="sidebar-label side-gap">YOUR ACCOUNT</div>
       <Link className="side-link" href="/profile/setup/"><span>⚙</span> Profile & visibility</Link>
       <div className="sidebar-note"><span>✦</span><p>Meaningful connections begin with being yourself.</p></div>
@@ -127,7 +127,7 @@ export default function DashboardPage() {
       <header className="app-topbar"><div><span className="crumb">Your space</span><span className="crumb-sep">/</span><strong>Home</strong></div><div className="top-actions"><button className="icon-button" aria-label="Notifications">♧</button><div className="top-avatar">{memberInitial}</div></div></header>
       <div className="dashboard-content redesigned-content">
         <section className="welcome-hero">
-          <div className="welcome-copy"><span className="eyebrow">A NEW CHAPTER, AT YOUR PACE</span><h1 className="serif">{profile?.displayName ? `Welcome, ${profile.displayName}.` : memberEmail ? 'Welcome back.' : 'Good to have you here.'}</h1><p>{profile ? publicSiteOnly ? 'Your saved profile is private. Editing is paused while NayaSaath prepares its launch.' : 'Your private profile is saved here. You can review or update it whenever you like.' : memberEmail ? 'Member profile setup is paused while NayaSaath prepares its launch.' : 'Make space for a connection that feels right. Start with a little introduction about yourself.'}</p><Link className="button" href={profile ? '/profile/setup/' : '/register/'}>{profile ? 'View your profile' : 'Launch update'} <span>↗</span></Link></div>
+          <div className="welcome-copy"><span className="eyebrow">A NEW CHAPTER, AT YOUR PACE</span><h1 className="serif">{profile?.displayName ? `Welcome, ${profile.displayName}.` : memberEmail ? 'Welcome back.' : 'Good to have you here.'}</h1><p>{profile ? publicSiteOnly ? 'Your saved profile is private. Editing is paused while NayaSaath prepares its launch.' : 'Your private profile is saved here. You can review or update it whenever you like.' : memberEmail ? publicSiteOnly ? 'Member profile setup is paused while NayaSaath prepares its launch.' : 'You can create a private profile draft. Use synthetic details only; member discovery is not available.' : 'Make space for a connection that feels right. Start with a private profile draft.'}</p><Link className="button" href={profile ? '/profile/setup/' : '/profile/setup/'}>{profile ? 'View your profile' : publicSiteOnly ? 'Launch update' : 'Create your private profile'} <span>↗</span></Link></div>
           <div className="welcome-art" aria-hidden="true"><div className="art-orbit orbit-one"></div><div className="art-orbit orbit-two"></div><div className="art-sun">✦</div><div className="art-caption">A meaningful<br/>beginning</div></div>
         </section>
         <div className="preview-alert"><span>i</span><div><strong>Member discovery is being prepared</strong><br/>No sample or unverified profiles are shown. You can search real, eligible member profiles when discovery is available.</div></div>

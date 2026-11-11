@@ -15,7 +15,7 @@ services:
       - key: PRIVATE_PROFILE_MODE
         value: "true"
       - key: PUBLIC_SITE_ONLY
-        value: "true"
+        value: "false"
       - key: WEB_ORIGIN
         value: https://nayasaath.me
       - key: EMAIL_PROVIDER

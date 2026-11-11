@@ -43,11 +43,11 @@ This checklist is intentionally strict because the platform handles highly sensi
 - [ ] App-store privacy disclosures and review.
 
 ## Release policy
-No real member onboarding until every critical gate above is assigned to an owner, tested, and signed off. Staging must use synthetic data only.
+No real member profile data, publishing, discovery, or member-to-member contact until every critical gate above is assigned to an owner, tested, and signed off. The limited early-access mode below permits account creation and synthetic private profile drafts only.
 
-### Limited private profile persistence
+### Limited early-access accounts and private profile drafts
 
-The Render Blueprint is configured with `AUTH_ONLY_MODE=true`, `PRIVATE_PROFILE_MODE=true`, and `PUBLIC_SITE_ONLY=true`. This keeps the public marketing site available, blocks new registration/email verification and profile/preferences writes, and leaves authenticated owner profile reads available for existing members. Publishing, discovery, messaging, verification submissions, uploads, safety, and admin endpoints remain unavailable. No waitlist data is collected. This is a public website with a restricted member service, not a public matchmaking launch.
+The Render Blueprint is configured with `AUTH_ONLY_MODE=true`, `PRIVATE_PROFILE_MODE=true`, and `PUBLIC_SITE_ONLY=false`. Public account creation, email verification, and authenticated owner-only profile/preferences writes are available. Users must use synthetic personal/family profile details; actual profile data is not ready for collection. Real account email and password credentials are stored to operate accounts. Publishing, discovery, messaging, verification submissions, uploads, safety, and admin endpoints remain unavailable. No waitlist data is collected. This limited early access is not a public matchmaking launch. Do not remove the auth-only/private-profile gates until the applicable launch checklist items are complete.
 
 
 ## Authentication and verification milestone update
