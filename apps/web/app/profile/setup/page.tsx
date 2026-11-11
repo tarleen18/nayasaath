@@ -50,7 +50,6 @@ type SavedProfile = {
   childrenLivingArrangement: string | null;
   languages: string[];
   interests: string[];
-  profileVisible: boolean;
   user?: { dateOfBirth: string | null };
   preference?: {
     minAge: number | null;
@@ -174,7 +173,7 @@ export default function ProfileSetupPage() {
   const [profileValues, setProfileValues] = useState<ProfileValues>(emptyProfile);
   const [preferenceValues, setPreferenceValues] = useState<PreferenceValues>(emptyPreferences);
   const [profileExists, setProfileExists] = useState(false);
-  const [profileVisible, setProfileVisible] = useState(false);
+  const [privateStorageAcknowledged, setPrivateStorageAcknowledged] = useState(false);
   const [pageStatus, setPageStatus] = useState<'loading' | 'ready' | 'unavailable' | 'error'>('loading');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -215,7 +214,6 @@ export default function ProfileSetupPage() {
           setProfileValues(profileValuesFromApi(data.profile));
           setPreferenceValues(preferencesFromApi(data.profile.preference));
           setProfileExists(true);
-          setProfileVisible(data.profile.profileVisible);
         }
         if (active) setPageStatus('ready');
       } catch (loadError) {
@@ -241,12 +239,17 @@ export default function ProfileSetupPage() {
       setError('Name, gender, date of birth, and marital status are required.');
       return;
     }
+    if (!privateStorageAcknowledged) {
+      setError('Please acknowledge the private profile storage notice before saving.');
+      return;
+    }
     setBusy(true);
     try {
       const response = await memberApiFetch('/profiles/me', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          privateStorageAcknowledged: true,
           displayName: profileValues.displayName.trim(),
           gender: genderToApi[profileValues.gender],
           selfDescribedGender: profileValues.gender === 'Self-describe' ? profileValues.selfDescribedGender.trim() : undefined,
@@ -268,8 +271,7 @@ export default function ProfileSetupPage() {
       const data = await response.json().catch(() => ({} as ApiResult)) as ApiResult;
       if (!response.ok) throw new Error(responseMessage(data, 'Could not save your profile.'));
       setProfileExists(true);
-      setProfileVisible(data.profile?.profileVisible ?? false);
-      setMessage(responseMessage(data, 'Your profile is saved privately. Publish it when you are ready.'));
+      setMessage(responseMessage(data, 'Your profile is saved privately and will not be visible to other members in this release.'));
     } catch (saveError) {
       if (saveError instanceof MemberSessionExpiredError) {
         memberSession.retry();
@@ -286,6 +288,10 @@ export default function ProfileSetupPage() {
     setMessage('');
     if (!profileExists) {
       setError('Save your basic profile before saving partner preferences.');
+      return;
+    }
+    if (!privateStorageAcknowledged) {
+      setError('Please acknowledge the private profile storage notice before saving.');
       return;
     }
     setBusy(true);
@@ -317,27 +323,6 @@ export default function ProfileSetupPage() {
     }
   }
 
-  async function changeVisibility(visible: boolean) {
-    setError('');
-    setMessage('');
-    setBusy(true);
-    try {
-      const response = await memberApiFetch(`/profiles/me/${visible ? 'publish' : 'hide'}`, { method: 'POST' });
-      const data = await response.json().catch(() => ({} as ApiResult)) as ApiResult;
-      if (!response.ok) throw new Error(responseMessage(data, 'Could not update profile visibility.'));
-      setProfileVisible(visible);
-      setMessage(responseMessage(data, visible ? 'Your profile is visible to eligible members.' : 'Your profile is hidden from discovery.'));
-    } catch (visibilityError) {
-      if (visibilityError instanceof MemberSessionExpiredError) {
-        memberSession.retry();
-      } else {
-        setError(visibilityError instanceof Error ? visibilityError.message : 'Could not update profile visibility.');
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
   if (memberSession.status === 'loading') {
     return <main className="shell" style={{ maxWidth: 520, paddingTop: 70 }}><p role="status">Checking your sign-in…</p></main>;
   }
@@ -355,7 +340,7 @@ export default function ProfileSetupPage() {
     return <main className="shell" style={{ maxWidth: 620, paddingTop: 70, paddingBottom: 80 }}>
       <Link className="brand" href="/">NayaSaath.</Link><p className="eyebrow" style={{ marginTop: 38 }}>PROFILE SETUP</p>
       <h1 className="serif" style={{ fontSize: 40 }}>Profile services aren’t enabled yet.</h1>
-      <p role="status" style={{ color: 'var(--muted)', lineHeight: 1.7 }}>Your sign-in is protected, but the live API is still in auth-only mode. This page will not collect profile details until profile saving is available.</p>
+      <p role="status" style={{ color: 'var(--muted)', lineHeight: 1.7 }}>Private profile saving is not available on the live API yet. This page will not collect profile details until the service is enabled.</p>
       <Link className="button" href="/dashboard/">Return to dashboard</Link>
     </main>;
   }
@@ -377,7 +362,7 @@ export default function ProfileSetupPage() {
     <div className="setup-layout">
       <aside className="setup-aside">
         <span className="eyebrow">YOUR INTRODUCTION</span><h1 className="serif">A little more about you.</h1>
-        <p>Share only what feels right. Your profile stays hidden until you choose to publish it.</p>
+        <p>Share only what feels right. Profile details are saved privately and will not appear to other members in this release.</p>
         <div className="setup-progress"><div><span>FIELDS COMPLETED</span><strong>{filled}</strong></div><div className="progress-track"><span style={{ width: `${Math.min(filled * 6, 100)}%` }} /></div></div>
         <nav className="step-nav" aria-label="Profile sections">
           {sectionTitles.map((title, index) => <button type="button" key={title} onClick={() => setStep(index)} className={index === step ? 'step-item selected' : 'step-item'}>
@@ -391,7 +376,12 @@ export default function ProfileSetupPage() {
         <div className="form-card">
           <div className="eyebrow">{step === 1 ? 'YOUR JOURNEY' : step === 2 ? 'WHAT MATTERS TO YOU' : step === 3 ? 'YOUR CHOICES' : 'GETTING TO KNOW YOU'}</div>
           <h2 className="serif">{sectionTitles[step]}</h2>
-          <p className="form-subtitle">{step === 2 ? 'These preferences are saved privately and used to filter member discovery where matching fields are available.' : 'Only profile fields supported by the member API are collected here. You can leave optional details blank.'}</p>
+          <p className="form-subtitle">{step === 2 ? 'These preferences are saved privately. Member discovery is not enabled in this release.' : 'Only profile fields supported by the member API are collected here. You can leave optional details blank.'}</p>
+
+          <label className="field-guidance field-wide" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 20 }}>
+            <input type="checkbox" checked={privateStorageAcknowledged} onChange={event => setPrivateStorageAcknowledged(event.target.checked)} />
+            <span>I understand that saving stores my profile details, date of birth, and preferences in the production database. They will not be visible to other members in this release. I will use synthetic details until the service's privacy, retention, and deletion safeguards are approved.</span>
+          </label>
 
           {step === 0 && <div className="field-grid">
             <label className="field">Name you want members to see<input required minLength={2} maxLength={80} autoComplete="name" style={fieldStyle} value={profileValues.displayName} onChange={event => updateProfileValue('displayName', event.target.value)} /></label>
@@ -429,10 +419,8 @@ export default function ProfileSetupPage() {
           </div>}
 
           {step === 3 && <div className="field-guidance">
-            <strong>Profile visibility: {profileVisible ? 'Visible' : 'Hidden'}</strong>
-            <p>{profileVisible ? 'Eligible members can discover the profile fields you chose to share.' : 'Your profile is private and will not appear in member discovery.'} Email, phone, date of birth, and partner preferences are not included in public discovery results.</p>
-            {!profileExists && <p>Save your required profile details before changing visibility.</p>}
-            <button type="button" className="button" disabled={busy || !profileExists} onClick={() => void changeVisibility(!profileVisible)}>{profileVisible ? 'Hide my profile' : 'Publish my profile'}</button>
+            <strong>Your profile stays private</strong>
+            <p>Profile publishing, discovery, messaging, verification, and safety tools are not enabled in this release. Your profile details and preferences are available only through your authenticated account endpoints.</p>
           </div>}
 
           {(error || message) && <p role={error ? 'alert' : 'status'} style={{ color: error ? '#a22' : '#356647', lineHeight: 1.6 }}>{error || message}</p>}

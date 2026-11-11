@@ -45,6 +45,10 @@ This checklist is intentionally strict because the platform handles highly sensi
 ## Release policy
 No real member onboarding until every critical gate above is assigned to an owner, tested, and signed off. Staging must use synthetic data only.
 
+### Limited private profile persistence
+
+The Render Blueprint can enable `PRIVATE_PROFILE_MODE=true` while leaving `AUTH_ONLY_MODE=true`. This exposes only authenticated owner profile read/save and preference save endpoints. Publishing, discovery, messaging, verification, safety, and admin endpoints remain unavailable. Profile data is stored in the production database, so use synthetic data only until the release gates above, including privacy notice, retention, deletion, and operational access controls, are approved.
+
 
 ## Authentication and verification milestone update
 

@@ -13,6 +13,7 @@ import { AdminService } from './admin/admin.service';
 import { AdminAuthGuard } from './admin/admin-auth.guard';
 import { VerificationReviewerGuard } from './admin/verification-reviewer.guard';
 import { ProfilesController } from './profiles/profiles.controller';
+import { PrivateProfilesController } from './profiles/private-profiles.controller';
 import { ProfilesService } from './profiles/profiles.service';
 import { SafetyController } from './safety/safety.controller';
 import { SafetyService } from './safety/safety.service';
@@ -22,7 +23,15 @@ import { EmailService } from './auth/email.service';
 import { AuthRateLimitGuard } from './auth/auth-rate-limit.guard';
 
 const authOnlyMode = process.env.AUTH_ONLY_MODE === 'true';
-const authOnlyControllers = [HealthController, AuthController];
+const privateProfileMode = process.env.PRIVATE_PROFILE_MODE === 'true';
+if (privateProfileMode && !authOnlyMode) {
+  throw new Error('PRIVATE_PROFILE_MODE=true requires AUTH_ONLY_MODE=true.');
+}
+const authOnlyControllers = [
+  HealthController,
+  AuthController,
+  ...(privateProfileMode ? [PrivateProfilesController] : []),
+];
 const fullApiControllers = [
   HealthController,
   VerificationController,
@@ -33,6 +42,7 @@ const fullApiControllers = [
   ConnectionsController,
 ];
 const authOnlyProviders = [PrismaService, AuthService, EmailService, JwtAuthGuard, AuthRateLimitGuard];
+const privateProfileProviders = privateProfileMode ? [ProfilesService] : [];
 const fullApiProviders = [
   ...authOnlyProviders,
   VerificationService,
@@ -47,6 +57,8 @@ const fullApiProviders = [
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../../.env', '.env'] }), JwtModule.register({})],
   controllers: authOnlyMode ? authOnlyControllers : fullApiControllers,
-  providers: authOnlyMode ? authOnlyProviders : fullApiProviders,
+  providers: authOnlyMode
+    ? [...authOnlyProviders, ...privateProfileProviders]
+    : fullApiProviders,
 })
 export class AppModule {}

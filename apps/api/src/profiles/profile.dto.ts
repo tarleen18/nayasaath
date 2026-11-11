@@ -2,10 +2,11 @@ import { Gender, MaritalStatus } from '@prisma/client';
 import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 
 export class UpsertProfileDto {
+  @IsBoolean() privateStorageAcknowledged!: boolean;
   @IsString() @MinLength(2) @MaxLength(80) displayName!: string;
   @IsEnum(Gender) gender!: Gender;
   @IsOptional() @IsString() @MaxLength(60) selfDescribedGender?: string;
-  @IsDateString() dateOfBirth!: string;
+  @IsDateString({ strict: true }) dateOfBirth!: string;
   @IsEnum(MaritalStatus) maritalStatus!: MaritalStatus;
   @IsOptional() @IsString() @MaxLength(1000) maritalStatusDetails?: string;
   @IsOptional() @IsString() @MaxLength(100) city?: string;

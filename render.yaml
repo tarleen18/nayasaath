@@ -12,6 +12,8 @@ services:
         value: production
       - key: AUTH_ONLY_MODE
         value: "true"
+      - key: PRIVATE_PROFILE_MODE
+        value: "true"
       - key: WEB_ORIGIN
         value: https://nayasaath.me
       - key: EMAIL_PROVIDER

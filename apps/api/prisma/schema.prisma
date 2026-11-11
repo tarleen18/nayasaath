@@ -125,7 +125,7 @@ model Profile {
   bio String? @db.VarChar(1200)
   maritalStatus MaritalStatus
   maritalStatusDetails String? @db.VarChar(1000)
-  hasChildren Boolean @default(false)
+  hasChildren Boolean?
   childrenCount Int?
   childrenLivingArrangement String?
   languages String[]

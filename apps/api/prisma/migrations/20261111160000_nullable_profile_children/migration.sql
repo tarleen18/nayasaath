@@ -1,0 +1,3 @@
+ALTER TABLE "Profile"
+  ALTER COLUMN "hasChildren" DROP DEFAULT,
+  ALTER COLUMN "hasChildren" DROP NOT NULL;
